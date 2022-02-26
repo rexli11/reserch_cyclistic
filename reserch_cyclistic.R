@@ -5,14 +5,16 @@ library(lubridate)
 setwd("D:/Github_version_file_R/data_set/clylistic_data")
 
 # --------------------- Import Data Set ---------------------------------
+# 暫時不用的檔案 (no use data)
 # 2018_data
-q1_18 <- read.csv("Divvy_Trips_2018_Q1.csv")
-q2_18 <- read.csv("Divvy_Trips_2018_Q2.csv")
-q3_18 <- read.csv("Divvy_Trips_2018_Q3.csv")
-q4_18 <- read.csv("Divvy_Trips_2018_Q4.csv")
+# q1_18 <- read.csv("Divvy_Trips_2018_Q1.csv")
+# q2_18 <- read.csv("Divvy_Trips_2018_Q2.csv")
+# q3_18 <- read.csv("Divvy_Trips_2018_Q3.csv")
+# q4_18 <- read.csv("Divvy_Trips_2018_Q4.csv")
+# # 2019_data
+# q1_19 <- read.csv("Divvy_Trips_2019_Q1.csv")
 
 # 2019_data
-q1_19 <- read.csv("Divvy_Trips_2019_Q1.csv")
 q2_19 <- read.csv("Divvy_Trips_2019_Q2.csv")
 q3_19 <- read.csv("Divvy_Trips_2019_Q3.csv")
 q4_19 <- read.csv("Divvy_Trips_2019_Q4.csv")
@@ -20,21 +22,19 @@ q4_19 <- read.csv("Divvy_Trips_2019_Q4.csv")
 # 2020_data
 q1_20 <- read.csv("Divvy_Trips_2020_Q1.csv")
 
-str(q1_18)
-str(q1_19)
+
 str(q2_19)
 str(q3_19)
 str(q4_19)
 str(q1_20)
-colnames(q1_18)
-colnames(q1_19)
+
+# --------------------- merge data set into a single file ---------------------------------
 colnames(q2_19)
 colnames(q3_19)
 colnames(q4_19)
 colnames(q1_20)
-ncol(q2_19)
 
-# 調整名稱與最新的data一致名稱
+# 調整名稱與最新的data一致名稱 (rename consistent to the new data colnames)
 q4_19 <- q4_19 %>%
     rename(
         ride_id = trip_id,
@@ -75,7 +75,7 @@ q2_19 <- q2_19 %>%
     )
 
 
-# 變更型態準備合併Data Set
+# 變更型態準備合併Data Set (change data type)
 q2_19 <- q2_19 %>%
     mutate(
         ride_id = as.character(ride_id),
@@ -94,5 +94,39 @@ q4_19 <- q4_19 %>%
         rideable_type = as.character(rideable_type)
     )
 
-# 透過rows合併季度資料
+# 透過rows合併季度資料 merge data set by rows
 all_datas <- bind_rows(q2_19, q3_19, q4_19, q1_20)
+
+# 移除最新的檔案(2020)中沒有的項目 (Remove items is not in the 2020 data set)
+all_datas <- all_datas %>%
+    select(-c(
+        "X01...Rental.Details.Duration.In.Seconds.Uncapped",
+        "Member.Gender",
+        "X05...Member.Details.Member.Birthday.Year",
+        "tripduration",
+        "gender",
+        "birthyear",
+        "start_lat",
+        "start_lng",
+        "end_lat",
+        "end_lng"
+    ))
+
+# --------------------- clearn and fix data values ---------------------------------
+# Check data values
+colnames(all_datas) # 9cols
+nrow(all_datas) # 3879822
+dim(all_datas) # 一維數據框 dimensions 1
+head(all_datas)
+tail(all_datas) # also head()
+str(all_datas)
+summary(all_datas)
+
+
+all_datas_factor <- all_datas %>%
+    mutate(
+        member_casual = as.factor(member_casual),
+        start_station_name = as.factor(start_station_name),
+    )
+
+summary(all_datas_factor)
