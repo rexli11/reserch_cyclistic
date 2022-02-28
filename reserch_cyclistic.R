@@ -112,6 +112,16 @@ all_datas <- all_datas %>%
         "end_lng"
     ))
 
+
+# export merge data set
+write.table(all_datas, file = "D:/Github_version_file_R/data_set/clylistic_data/all_datas.csv", sep = ",", row.names = TRUE, na = "NA")
+
+# --------------------- Data Location ---------------------------------
+setwd("D:/Github_version_file_R/data_set/clylistic_data")
+
+# --------------------- Import Data Set ---------------------------------
+all_datas <- read.csv("all_datas.csv")
+
 # --------------------- clearn and fix data values ---------------------------------
 # Check data values
 colnames(all_datas) # 9cols
@@ -122,7 +132,7 @@ tail(all_datas) # also head()
 str(all_datas)
 summary(all_datas)
 
-
+# 檢查member與start_station_name內的值 Check values in merber & start_station_name
 all_datas_factor <- all_datas %>%
     mutate(
         member_casual = as.factor(member_casual),
@@ -130,3 +140,17 @@ all_datas_factor <- all_datas %>%
     )
 
 summary(all_datas_factor)
+
+# 重複命名的rows變更 >> Subscriber與Customer Fix duplicate naming in Subscriber & Customer
+all_datas <- all_datas %>%
+    mutate(member_casual = recode(member_casual, "Subscriber" = "member", "Customer" = "casual"))
+
+# 變更日期格式，新增欄位月、日、年、周 Format date type in month、day、year、week
+all_datas$date <- as.Date(all_datas$started_at)
+all_datas$month <- format(as.Date(all_datas$date), "%m")
+all_datas$day <- format(as.Date(all_datas$date), "%d")
+all_datas$year <- format(as.Date(all_datas$date), "%Y")
+all_datas$week <- format(as.Date(all_datas$date), "%A")
+
+# 增加欄位，騎乘長度
+all_datas$ride_length <- difftime(all_datas$ended_at, all_datas$started_at)
