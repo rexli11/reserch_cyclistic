@@ -4,10 +4,6 @@ library(dplyr)
 library(tidyr)
 library(gcookbook)
 
-# install.packages("vscDebugger")
-# library(vscDebugger)
-# ---------------------  ---------------------------------
-
 # ==========================================
 # 1. Check Data
 # ==========================================
@@ -37,7 +33,7 @@ colnames(q1_20)
 # 2. Tidy Up Data And Combine (consistent the 2020 data set)
 # ==========================================
 # --------------------- merge data set into a single file ---------------------------------
-# rename consistent to the 2020 data colnames
+# 調整名稱與2020數據一致 rename consistent to the 2020 data colnames
 q4_19 <- q4_19 %>%
     rename(
         ride_id = trip_id,
@@ -78,7 +74,7 @@ q2_19 <- q2_19 %>%
     )
 
 
-# change data type before combine
+# 轉換數據型態準備整合 change data type before combine
 q2_19 <- q2_19 %>%
     mutate(
         ride_id = as.character(ride_id),
@@ -98,11 +94,11 @@ q4_19 <- q4_19 %>%
     )
 
 
-# merge data set by rows
+# 依照欄位進行合併 merge data set by rows
 combine_datas <- bind_rows(q2_19, q3_19, q4_19, q1_20)
 str(combine_datas)
 
-# 移除最新的檔案(2020)中沒有的項目 (Remove items is not in the 2020 data set)
+# 移除最新的檔案(2020)中沒有的項目 Remove items is not in the 2020 data set
 combine_datas <- combine_datas %>%
     select(-c(
         "X01...Rental.Details.Duration.In.Seconds.Uncapped",
@@ -117,12 +113,12 @@ combine_datas <- combine_datas %>%
         "end_lng"
     ))
 
-# Check data values
+# 檢查合併後數據內容 Check data values
 colnames(combine_datas) # 9cols
 nrow(combine_datas) # 3879822
 dim(combine_datas) # 一維數據框 dimensions 1
 head(combine_datas)
-tail(combine_datas) # 等同also head()
+tail(combine_datas)
 str(combine_datas)
 summary(combine_datas)
 
@@ -226,23 +222,29 @@ combine_datas_clearn$week <- ordered(combine_datas_clearn$week, levels = c("Sund
 combine_datas_clearn$month <- ordered(combine_datas_clearn$month, levels = c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
 
 
-# 彙整用戶於週進行騎行比較
+# 彙整用戶於週進行騎行比較 aggregation of week and ride length
 aggregate(combine_datas_clearn$ride_length ~ combine_datas_clearn$member_casual + combine_datas_clearn$week, FUN = mean) %>%
     view()
 
-# 彙整用戶於日進行騎行比較
+# 彙整用戶於日進行騎行比較 aggregation of day and ride length
 aggregate(combine_datas_clearn$ride_length_minutes ~ combine_datas_clearn$member_casual + combine_datas_clearn$day, FUN = mean) %>%
     view()
 
-# 彙整用戶於月進行騎行比較
+# 彙整用戶於月進行騎行比較 aggregation of month and ride length
 aggregate(combine_datas_clearn$ride_length_minutes ~ combine_datas_clearn$member_casual + combine_datas_clearn$month, FUN = mean) %>%
     view()
 
-# 彙整用戶於小時進行騎行比較
+# 彙整用戶於小時進行騎行比較 aggregation of hour and ride length
 aggregate(combine_datas_clearn$ride_length_minutes ~ combine_datas_clearn$member_casual + combine_datas_clearn$hour, FUN = mean) %>%
     view()
 
-# 依照星期、型態分組進行騎乘者分析 >> ok
+# 使用者數量統計
+total_riders <- combine_datas_clearn %>%
+    group_by(member_casual) %>%
+    summarise(total_riders = n()) %>%
+    view()
+
+# 依照星期、型態分組進行騎乘者分析 Data aggregation by week and member type。
 riders_weeks <- combine_datas_clearn %>%
     group_by(member_casual, week) %>%
     summarise(
@@ -251,28 +253,30 @@ riders_weeks <- combine_datas_clearn %>%
     ) %>%
     view()
 
-# 會員與站點次數，取前五百個與後五百個站點
+# 會員與站點次數，取前50個與後50個站點 Summarize the number of sites used, and compare top 50 and last 50 sites
+# Top Station
 member_station_top <- combine_datas_clearn %>%
     group_by(start_station_name, member_casual) %>%
     summarise(
         total_riders = n(),
         avg_length_minutes = mean(ride_length_minutes)
     ) %>%
-    arrange(desc(total_riders)) %>%
-    head(500) %>%
-    view()
+    arrange(desc(total_riders))
 
+View(member_station_top[1:50, ])
+
+# Bottom Station
 member_station_bottom <- combine_datas_clearn %>%
     group_by(start_station_name, member_casual) %>%
     summarise(
         total_riders = n(),
         avg_length_minutes = mean(ride_length_minutes)
     ) %>%
-    arrange(total_riders) %>%
-    head(500) %>%
-    view()
+    arrange(total_riders)
 
-# 以小時、會員總數進行觀察 >> ok
+View(member_station_bottom[1:50, ])
+
+# 以小時、會員總數進行觀察 Data aggregation by hour and total number of members
 riders_day_of_hour <- combine_datas_clearn %>%
     group_by(member_casual, hour) %>%
     summarise(
@@ -281,7 +285,7 @@ riders_day_of_hour <- combine_datas_clearn %>%
     ) %>%
     view()
 
-# 以月、會員總數進行觀察 >> ok
+# 以月、會員總數進行觀察 Data aggregation by month and total number of members
 riders_month <- combine_datas_clearn %>%
     group_by(member_casual, month) %>%
     summarise(
@@ -295,7 +299,25 @@ riders_month <- combine_datas_clearn %>%
 # ==========================================
 # 5. Visualization information
 # ==========================================
-str(riders_weeks)
+str(total_riders)
+# 使用者數量統計
+total_riders %>%
+    ggplot(mapping = aes(
+        x = member_casual,
+        y = total_riders,
+        fill = member_casual
+    )) +
+    geom_col(position = "dodge") +
+    scale_y_continuous(
+        breaks = c(0, max(total_riders$total_riders), 500000),
+        name = "Total Riders"
+    ) +
+    scale_x_discrete(
+        name = "Member & Casual"
+    ) +
+    scale_fill_manual(values = c("tomato1", "springgreen3")) +
+    labs(title = "使用者總人數比對 Comparison of the Total Number of Users")
+
 # 依照星期進行騎乘者分析
 riders_weeks %>%
     ggplot(mapping = aes(
@@ -406,7 +428,7 @@ riders_month %>%
 
 # ------------------------------------------
 # 熱門站點使用狀況
-member_station_top %>%
+member_station_top[1:500, ] %>%
     ggplot(mapping = aes(
         x = total_riders,
         y = avg_length_minutes,
@@ -416,7 +438,8 @@ member_station_top %>%
     geom_point(position = "jitter") +
     facet_wrap(~member_casual) +
     ylab("Average Length (Unit : Minutes)") +
-    xlab("Total Riders")
+    xlab("Total Riders") +
+    labs(title = "使用最多的500個站點使用情形 Top 500 sites used")
 
 member_station_top[1:20, ] %>%
     ggplot(mapping = aes(
@@ -434,7 +457,7 @@ member_station_top[1:20, ] %>%
     labs(title = "熱門站點使用者人數比對 Comparison of Users vs Popular Station")
 
 # 冷門站點使用狀況
-member_station_bottom %>%
+member_station_bottom[1:500, ] %>%
     ggplot(mapping = aes(
         x = total_riders,
         y = avg_length_minutes,
@@ -445,7 +468,8 @@ member_station_bottom %>%
     theme(axis.text.x = element_text(angle = 30)) +
     facet_wrap(~member_casual) +
     ylab("Average Length (Unit : Minutes)") +
-    xlab("Total Riders")
+    xlab("Total Riders") +
+    labs(title = "使用最少的500個站點使用情形 Minimum used 500 sites")
 
 
 member_station_bottom[1:20, ] %>%
