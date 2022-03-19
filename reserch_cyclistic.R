@@ -2,7 +2,11 @@ library(tidyverse)
 library(lubridate)
 library(dplyr)
 library(tidyr)
-library(gcookbook)
+
+# ==========================================
+# 觀看完整報告，請至雲端下載PDF : https://drive.google.com/drive/folders/1Dd62KlIexyLPgE6nYF0ZyCcUvnQzFf7p?usp=sharing
+# View the full report, please go to the google cloud to download the PDF
+# ==========================================
 
 # ==========================================
 # 1. Check Data
@@ -73,7 +77,6 @@ q2_19 <- q2_19 %>%
         member_casual = User.Type
     )
 
-
 # 轉換數據型態準備整合 change data type before combine
 q2_19 <- q2_19 %>%
     mutate(
@@ -92,7 +95,6 @@ q4_19 <- q4_19 %>%
         ride_id = as.character(ride_id),
         rideable_type = as.character(rideable_type)
     )
-
 
 # 依照欄位進行合併 merge data set by rows
 combine_datas <- bind_rows(q2_19, q3_19, q4_19, q1_20)
@@ -125,7 +127,6 @@ summary(combine_datas)
 # 匯出第一份整理資料 export merge data set
 write.table(combine_datas, file = "D:/Github_version_file_R/data_set/clylistic_data/combine_datas.csv", sep = ",", row.names = TRUE, na = "NA")
 
-
 # ==========================================
 # 3. Clearn Data Set
 # ==========================================
@@ -134,19 +135,17 @@ setwd("D:/Github_version_file_R/data_set/clylistic_data")
 
 # --------------------- Import Data Set ---------------------------------
 combine_datas <- read.csv("combine_datas.csv")
-str(combine_datas)
-head(combine_datas)
 
 # --------------------- clearn and fix data values ---------------------------------
 # 檢查member內的值 Check values in merber in the table
 table(combine_datas$member_casual)
-str(combine_datas)
 
 # 重複命名的rows變更 >> Subscriber與Customer Fix duplicate naming in Subscriber & Customer
 combine_datas <- combine_datas %>%
     mutate(member_casual = recode(member_casual, "Subscriber" = "member", "Customer" = "casual"))
 
 # 變更日期格式，新增欄位月、日、年、周 Format date type in month、day、year、week
+# 使用lubridate函數，也可以使用as.POSIXct進行日期調整
 combine_datas <- combine_datas %>%
     mutate(
         year = year(combine_datas$started_at),
@@ -202,7 +201,6 @@ combine_datas_clearn <- combine_datas
 # 匯出第二份整理數據 export the clearn data set
 write.table(combine_datas_clearn, file = "D:/Github_version_file_R/data_set/clylistic_data/combine_datas_clearn.csv", sep = ",", row.names = TRUE, na = "NA")
 
-
 # ==========================================
 # 4. Analyze Data information
 # ==========================================
@@ -214,34 +212,42 @@ combine_datas_clearn <- read.csv("combine_datas_clearn.csv")
 str(combine_datas_clearn)
 table(combine_datas_clearn$member_casual)
 
-
 # 星期進行排序 Sort Week
 combine_datas_clearn$week <- ordered(combine_datas_clearn$week, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
 
 # 月份進行排序 Sort month
 combine_datas_clearn$month <- ordered(combine_datas_clearn$month, levels = c("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
 
+# 彙整總人數
+aggregate(combine_datas_clearn$member_casual ~ combine_datas_clearn$ride_length_minutes, FUN = min) %>%
+    view()
 
 # 彙整用戶於週進行騎行比較 aggregation of week and ride length
-aggregate(combine_datas_clearn$ride_length ~ combine_datas_clearn$member_casual + combine_datas_clearn$week, FUN = mean) %>%
+aggregate(data = combine_datas_clearn, ride_length_minutes ~ member_casual + week, FUN = mean) %>%
     view()
 
 # 彙整用戶於日進行騎行比較 aggregation of day and ride length
-aggregate(combine_datas_clearn$ride_length_minutes ~ combine_datas_clearn$member_casual + combine_datas_clearn$day, FUN = mean) %>%
+aggregate(data = combine_datas_clearn, ride_length_minutes ~ member_casual + day, FUN = mean) %>%
     view()
 
 # 彙整用戶於月進行騎行比較 aggregation of month and ride length
-aggregate(combine_datas_clearn$ride_length_minutes ~ combine_datas_clearn$member_casual + combine_datas_clearn$month, FUN = mean) %>%
+aggregate(data = combine_datas_clearn, ride_length_minutes ~ member_casual + month, FUN = mean) %>%
     view()
 
 # 彙整用戶於小時進行騎行比較 aggregation of hour and ride length
-aggregate(combine_datas_clearn$ride_length_minutes ~ combine_datas_clearn$member_casual + combine_datas_clearn$hour, FUN = mean) %>%
+aggregate(data = combine_datas_clearn, ride_length_minutes ~ member_casual + hour, FUN = mean) %>%
     view()
 
-# 使用者數量統計
-total_riders <- combine_datas_clearn %>%
+# 使用者數量統計並顯示比例
+user_sum <- combine_datas_clearn %>%
     group_by(member_casual) %>%
     summarise(total_riders = n()) %>%
+    view()
+
+# 計算使用者比例
+per_rider <- paste(
+    round(user_sum$total_riders / sum(user_sum$total_riders) * 100, digits = 2), "%"
+) %>%
     view()
 
 # 依照星期、型態分組進行騎乘者分析 Data aggregation by week and member type。
@@ -299,9 +305,8 @@ riders_month <- combine_datas_clearn %>%
 # ==========================================
 # 5. Visualization information
 # ==========================================
-str(total_riders)
 # 使用者數量統計
-total_riders %>%
+user_sum %>%
     ggplot(mapping = aes(
         x = member_casual,
         y = total_riders,
@@ -309,7 +314,7 @@ total_riders %>%
     )) +
     geom_col(position = "dodge") +
     scale_y_continuous(
-        breaks = c(0, max(total_riders$total_riders), 500000),
+        breaks = c(0, max(user_sum$total_riders), 500000),
         name = "Total Riders"
     ) +
     scale_x_discrete(
@@ -317,6 +322,16 @@ total_riders %>%
     ) +
     scale_fill_manual(values = c("tomato1", "springgreen3")) +
     labs(title = "使用者總人數比對 Comparison of the Total Number of Users")
+
+# 轉化圓餅圖
+pie_percent <- pie(user_sum$total_riders,
+    labels = per_rider$x,
+    col = c("yellow2", "violetred"),
+    main = "年度會員與休閒會員比例 | Annual membership to the casual ratio"
+)
+
+# 添加說明
+legend("topright", legend = c("Casual", "Member"), cex = 1, fill = c("yellow2", "violetred"))
 
 # 依照星期進行騎乘者分析
 riders_weeks %>%
@@ -377,7 +392,6 @@ riders_day_of_hour %>%
         subtitle = " 使用者時段統計 User Period Statistics"
     )
 
-
 # 平均騎乘時間
 riders_day_of_hour %>%
     ggplot(mapping = aes(
@@ -437,7 +451,10 @@ member_station_top[1:500, ] %>%
     )) +
     geom_point(position = "jitter") +
     facet_wrap(~member_casual) +
-    ylab("Average Length (Unit : Minutes)") +
+    scale_y_continuous(
+        breaks = c(seq(0, max(member_station_top$avg_length_minutes), 10)),
+        name = "Average Length (Unit : Minutes)"
+    ) +
     xlab("Total Riders") +
     labs(title = "使用最多的500個站點使用情形 Top 500 sites used")
 
@@ -445,7 +462,7 @@ member_station_top[1:20, ] %>%
     ggplot(mapping = aes(
         x = start_station_name,
         y = total_riders,
-        fill = avg_length_minutes
+        fill = member_casual
     )) +
     geom_col() +
     scale_y_continuous(
@@ -467,16 +484,19 @@ member_station_bottom[1:500, ] %>%
     geom_point(position = "jitter") +
     theme(axis.text.x = element_text(angle = 30)) +
     facet_wrap(~member_casual) +
-    ylab("Average Length (Unit : Minutes)") +
+    scale_y_continuous(
+        breaks = c(seq(0, max(member_station_bottom$avg_length_minutes), 1000)),
+        name = "Average Length (Unit : Minutes)"
+    ) +
+    # ylab("Average Length (Unit : Minutes)") +
     xlab("Total Riders") +
     labs(title = "使用最少的500個站點使用情形 Minimum used 500 sites")
-
 
 member_station_bottom[1:20, ] %>%
     ggplot(mapping = aes(
         x = start_station_name,
         y = total_riders,
-        fill = avg_length_minutes
+        fill = member_casual
     )) +
     geom_col(position = "dodge") +
     scale_y_continuous(
